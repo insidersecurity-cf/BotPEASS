@@ -1,6 +1,8 @@
 ALL_VALID: no
 
 DESCRIPTION_KEYWORDS_I:
+- rce
+- remote code execution
 - privilege escalation
 - escalation
 - privesc
@@ -31,5 +33,8 @@ PRODUCT_KEYWORDS_I:
 - container
 
 PRODUCT_KEYWORDS:
-- ThisIsACaseSensitiveExample
+- wordpress
+- WordPress
+- Drupal
+- Adobe
 
