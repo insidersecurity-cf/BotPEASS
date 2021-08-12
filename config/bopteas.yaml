@@ -3,12 +3,16 @@ ALL_VALID: no
 DESCRIPTION_KEYWORDS_I:
 - rce
 - remote code execution
-- privilege escalation
-- escalation
+- sql injection
+- sqli
 - privesc
+- lfi
+- local file inclusion
+- rfi
+- remote file inclusion
 - high integrity
-- elevated privilege
-- escalation of privilege
+- remote escalation of privilege
+- remote privilege escalation
 - " sudo "
 - " suid "
 - " pe "
@@ -36,6 +40,8 @@ PRODUCT_KEYWORDS:
 - wordpress
 - WordPress
 - Drupal
+- AEM
+- Adobe AEM
 - AdobeCQ
 - Adobe CQ
 - Adobe Experience Platform
@@ -45,7 +51,10 @@ PRODUCT_KEYWORDS:
 - IBM HTTP
 - Horizon
 - Citrix
+- Netscaler
 - Pulse Secure
 - Juniper
 - Cisco
-
+- Tomcat
+- Microsoft Exchange
+- Fortinet Fortigate
