@@ -59,7 +59,7 @@ def load_lasttimes():
             LAST_NEW_CVE = datetime.datetime.strptime(cves_time["LAST_NEW_CVE"], TIME_FORMAT)
             LAST_MODIFIED_CVE = datetime.datetime.strptime(cves_time["LAST_MODIFIED_CVE"], TIME_FORMAT)
 
-    except Excepton as e: #If error, just keep the fault date (today - 1 day)
+    except Exception as e: #If error, just keep the fault date (today - 1 day)
         print(f"ERROR, using default last times.\n{e}")
         pass
 
@@ -113,7 +113,7 @@ def get_new_cves() -> list:
 
 
 def get_modified_cves() -> list:
-    ''' Get CVEs that has been modified '''
+    ''' Get CVEs that have been modified '''
 
     global LAST_MODIFIED_CVE
 
@@ -167,7 +167,6 @@ def search_exploits(cve: str) -> list:
     
     return []
     #TODO: Find a better way to discover exploits
-
     vulners_api_key = os.getenv('VULNERS_API_KEY')
     
     if vulners_api_key:
@@ -179,6 +178,11 @@ def search_exploits(cve: str) -> list:
         print("VULNERS_API_KEY wasn't configured in the secrets!")
     
     return []
+
+def search_github(cve: str):
+    # TODO: GitHub dorking - check URL syntax, fix, then save it into a message and append to the generated message function
+    github_url = f'https://github.com/search?q={cve}'
+    return github_url
 
 
 #################### GENERATE MESSAGES #########################
@@ -196,7 +200,7 @@ def generate_new_cve_message(cve_data: dict) -> str:
         message += f"\n🔓  *Vulnerable* (_limit to 10_): " + ", ".join(cve_data["vulnerable_configuration"][:10])
     
     message += "\n\n🟢 ℹ️  *More information* (_limit to 5_)\n" + "\n".join(cve_data["references"][:5])
-
+    message += f"\n *GitHub Dork:* {cve_data['github_dork']}"
     message += "\n\n(Check the bots description for more information about the bot)\n"
     
     return message
@@ -283,7 +287,7 @@ def send_telegram_message(message: str, public_expls_msg: str):
         r = requests.get(f'https://api.telegram.org/bot{telegram_bot_token}/sendMessage?parse_mode=MarkdownV2&text=Error with' + message.split("\n")[0] + f'{resp["description"]}&chat_id={telegram_chat_id}')
         resp = r.json()
         if not resp['ok']:
-            print("ERROR SENDING TO TELEGRAM: "+ message.split("\n")[0] + resp["description"])
+            print("ERROR SENDING TO TELEGRAM: " + message.split("\n")[0] + resp["description"])
 
 #################### MAIN #########################
 
@@ -302,6 +306,7 @@ def main():
     
     for new_cve in new_cves:
         public_exploits = search_exploits(new_cve['id'])
+        new_cve['github_dork'] = search_github(new_cve['id'])
         cve_message = generate_new_cve_message(new_cve)
         public_expls_msg = generate_public_expls_message(public_exploits)
         send_slack_mesage(cve_message, public_expls_msg)
@@ -316,6 +321,7 @@ def main():
     
     for modified_cve in modified_cves:
         public_exploits = search_exploits(modified_cve['id'])
+        modified_cve['github_dork'] = search_github(modified_cve['id'])
         cve_message = generate_modified_cve_message(modified_cve)
         public_expls_msg = generate_public_expls_message(public_exploits)
         send_slack_mesage(cve_message, public_expls_msg)

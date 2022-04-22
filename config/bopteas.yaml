@@ -1,6 +1,8 @@
 ALL_VALID: no
 
 DESCRIPTION_KEYWORDS_I:
+- auth bypass
+- authentication bypass
 - rce
 - remote code execution
 - sql injection
@@ -10,51 +12,48 @@ DESCRIPTION_KEYWORDS_I:
 - local file inclusion
 - rfi
 - remote file inclusion
-- high integrity
 - remote escalation of privilege
 - remote privilege escalation
 - " sudo "
 - " suid "
-- " pe "
 - " UAC "
-- User Account Control
+- unauthenticated
 - linpeas
 - winpeas
 - docker
 - kubernetes
 - " lxc "
-- podman
 
 DESCRIPTION_KEYWORDS:
-- ThisIsACaseSensitiveExample
+- NoneForNow
+- User Account Control
 
 PRODUCT_KEYWORDS_I:
 - sudo
 - docker
 - kubernetes
 - lxc
-- podman
-- container
 
 PRODUCT_KEYWORDS:
-- wordpress
-- WordPress
-- Drupal
-- AEM
+- " AEM "
 - Adobe AEM
 - AdobeCQ
 - Adobe CQ
 - Adobe Experience Platform
 - Adobe Experience Manager
-- vCenter
-- Oracle
-- IBM HTTP
-- Horizon
+- Cisco
 - Citrix
+- Drupal
+- Fortinet Fortigate
+- IBM HTTP
+- Juniper
+- Microsoft Exchange
+- Microsoft SQL
 - Netscaler
 - Pulse Secure
-- Juniper
-- Cisco
+- Python Django
+- Python Flask
+- Spring Boot
 - Tomcat
-- Microsoft Exchange
-- Fortinet Fortigate
+- VMware Horizon
+- WordPress
