@@ -81,7 +81,7 @@ def update_lasttimes():
 ################## SEARCH CVES ####################
 
 def get_cves(tt_filter:Time_Type) -> dict:
-    ''' Given the headers for the API retrive CVEs from cve.circl.lu '''
+    ''' Given the headers for the API retrieve CVEs from cve.circl.lu '''
     now = datetime.datetime.now() - datetime.timedelta(days=1)
     now_str = now.strftime("%d-%m-%Y")
 
@@ -190,8 +190,9 @@ def search_github(cve: str):
 def generate_new_cve_message(cve_data: dict) -> str:
     ''' Generate new CVE message for sending to slack '''
 
+    # Emoji's for copy and pasting here: https://www.freecodecamp.org/news/all-emojis-emoji-list-for-copy-and-paste/
     message = f"🚨  *{cve_data['id']}*  🚨\n"
-    message += f"🔮  *CVSS*: {cve_data['cvss']}\n"
+    message += f"💥  *CVSS*: {cve_data['cvss']}\n"
     message += f"📅  *Published*: {cve_data['Published']}\n"
     message += "📓  *Summary*: " 
     message += cve_data["summary"] if len(cve_data["summary"]) < 400 else cve_data["summary"][:400] + "..."
@@ -199,9 +200,8 @@ def generate_new_cve_message(cve_data: dict) -> str:
     if cve_data["vulnerable_configuration"]:
         message += f"\n🔓  *Vulnerable* (_limit to 10_): " + ", ".join(cve_data["vulnerable_configuration"][:10])
     
-    message += "\n\n🟢 ℹ️  *More information* (_limit to 5_)\n" + "\n".join(cve_data["references"][:5])
-    message += f"\n *GitHub Dork:* {cve_data['github_dork']}"
-    message += "\n\n(Check the bots description for more information about the bot)\n"
+    message += "\n\nℹ️  *More information* (_limit to 5_)\n" + "\n".join(cve_data["references"][:5])
+    message += f"\n🔗 *GitHub Dork:* {cve_data['github_dork']}"
     
     return message
 
@@ -309,6 +309,8 @@ def main():
         new_cve['github_dork'] = search_github(new_cve['id'])
         cve_message = generate_new_cve_message(new_cve)
         public_expls_msg = generate_public_expls_message(public_exploits)
+        exit(0)
+        print(f"{cve_message}")
         send_slack_mesage(cve_message, public_expls_msg)
         send_telegram_message(cve_message, public_expls_msg)
     
