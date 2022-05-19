@@ -46,6 +46,7 @@ def load_keywords():
         DESCRIPTION_KEYWORDS = keywords_config["DESCRIPTION_KEYWORDS"]
         PRODUCT_KEYWORDS_I = keywords_config["PRODUCT_KEYWORDS_I"]
         PRODUCT_KEYWORDS = keywords_config["PRODUCT_KEYWORDS"]
+    return
 
 
 def load_lasttimes():
@@ -60,11 +61,12 @@ def load_lasttimes():
             LAST_MODIFIED_CVE = datetime.datetime.strptime(cves_time["LAST_MODIFIED_CVE"], TIME_FORMAT)
 
     except Exception as e: #If error, just keep the fault date (today - 1 day)
-        print(f"ERROR, using default last times.\n{e}")
+        print(f"[ERR], using default last timestamp.\n Error: {e}")
         pass
 
     print(f"Last new cve: {LAST_NEW_CVE}")
     print(f"Last modified cve: {LAST_MODIFIED_CVE}")
+    return
 
 
 def update_lasttimes():
@@ -75,7 +77,7 @@ def update_lasttimes():
             "LAST_NEW_CVE": LAST_NEW_CVE.strftime(TIME_FORMAT),
             "LAST_MODIFIED_CVE": LAST_MODIFIED_CVE.strftime(TIME_FORMAT),
         }, json_file)
-
+    return
 
 
 ################## SEARCH CVES ####################
@@ -139,11 +141,11 @@ def filter_cves(cves: list, last_time: datetime.datetime, tt_filter: Time_Type) 
         if cve_time > last_time:
             if ALL_VALID or is_summ_keyword_present(cve["summary"]) or \
                 is_prod_keyword_present(str(cve["vulnerable_configuration"])):
-                
                 filtered_cves.append(cve)
 
         if cve_time > new_last_time:
             new_last_time = cve_time
+            print("[*] New last time: {}".format(new_last_time))
 
     return filtered_cves, new_last_time
 
@@ -176,8 +178,8 @@ def search_exploits(cve: str) -> list:
     
     else:
         print("VULNERS_API_KEY wasn't configured in the secrets!")
-    
     return []
+
 
 def search_github(cve: str):
     # TODO: GitHub dorking - check URL syntax, fix, then save it into a message and append to the generated message function
@@ -202,7 +204,6 @@ def generate_new_cve_message(cve_data: dict) -> str:
     
     message += "\n\nℹ️  *More information* (_limit to 5_)\n" + "\n".join(cve_data["references"][:5])
     message += f"\n🔗 *GitHub Dork:* {cve_data['github_dork']}"
-    
     return message
 
 
@@ -217,10 +218,8 @@ def generate_public_expls_message(public_expls: list) -> str:
     ''' Given the list of public exploits, generate the message '''
 
     message = ""
-
     if public_expls:
         message = "😈  *Public Exploits* (_limit 20_)  😈\n" + "\n".join(public_expls[:20])
-
     return message
 
 
@@ -258,7 +257,6 @@ def send_slack_mesage(message: str, public_expls_msg: str):
                     "text": public_expls_msg
                 }
         })
-
     requests.post(slack_url, json=json_params)
 
 
@@ -309,14 +307,12 @@ def main():
         new_cve['github_dork'] = search_github(new_cve['id'])
         cve_message = generate_new_cve_message(new_cve)
         public_expls_msg = generate_public_expls_message(public_exploits)
-        exit(0)
         print(f"{cve_message}")
         send_slack_mesage(cve_message, public_expls_msg)
         send_telegram_message(cve_message, public_expls_msg)
     
     #Find and publish modified CVEs
     modified_cves = get_modified_cves()
-
     modified_cves = [mcve for mcve in modified_cves if not mcve['id'] in new_cves_ids]
     modified_cves_ids = [mcve['id'] for mcve in modified_cves]
     print(f"Modified CVEs discovered: {modified_cves_ids}")
@@ -331,6 +327,7 @@ def main():
 
     #Update last times
     update_lasttimes()
+    return
 
 
 if __name__ == "__main__":
