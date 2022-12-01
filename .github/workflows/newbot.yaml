@@ -1,4 +1,4 @@
-name: bopteas_action
+name: newbot_workflow
 
 on:
   schedule:
