@@ -17,12 +17,10 @@ def main():
         #print("[DBG] data keys: {}".format(data[0].keys()))
         for item in data:
             public_exploits = ''
-            #public_exploits = search_for_exploits(item)
             cve_message = generate_new_cve_message(item)
-            #exploits_message = generate_exploits_message(item)
             if item.get('ExploitDB_ID') is not None:
                 print(f"[DBG] CVE (with exploit-db ID) Message:\n{cve_message}")
-            #send_slack_mesage(cve_message)
+            send_slack_mesage(cve_message)
         
         print("[*] {} new CVE's to report this collection cycle".format(len(data)))
     else:
