@@ -1,10 +1,23 @@
+# Search & Filtering Behavior
 ALL_VALID: no
+# Configure this as one of: all_cves, all_keywords, products
+SEARCH_SCOPE: all_keywords
+INCLUDE_HIGH_SEVERITY: True
+HIGH_SEVERITY_THRESHOLD: 8.0
 
+# Enable including only matched keywords if CVE is also a high CVSS score
+ENABLE_SCORE_FILTERING: False
+MIN_SCORE_THRESHOLD: 6.0
+
+# If present, exclude CVE from results
+EXCLUDED_KEYWORDS:
+- SourceCodester
+
+# Case-insensitive keywords in CVE Description/Summary
 DESCRIPTION_KEYWORDS_I:
 - auth bypass
 - authentication bypass
-- rce
-- remote code execution
+- deserialization
 - sql injection
 - sqli
 - privesc
@@ -12,14 +25,11 @@ DESCRIPTION_KEYWORDS_I:
 - local file inclusion
 - rfi
 - remote file inclusion
-- remote escalation of privilege
-- remote privilege escalation
+- rce
+- remote code execution
 - " sudo "
 - " suid "
 - " UAC "
-- unauthenticated
-- linpeas
-- winpeas
 - docker
 - kubernetes
 - " lxc "
@@ -46,6 +56,7 @@ PRODUCT_KEYWORDS:
 - Fortinet Fortigate
 - IBM HTTP
 - Juniper
+- Magento
 - Microsoft Exchange
 - Microsoft SQL
 - Netscaler

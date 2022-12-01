@@ -4,7 +4,7 @@ import pathlib
 import json
 import os
 import yaml
-import vulners
+#import vulners
 
 from os.path import join
 from enum import Enum
@@ -169,16 +169,16 @@ def search_exploits(cve: str) -> list:
     
     return []
     #TODO: Find a better way to discover exploits
-    vulners_api_key = os.getenv('VULNERS_API_KEY')
+    # vulners_api_key = os.getenv('VULNERS_API_KEY')
     
-    if vulners_api_key:
-        vulners_api = vulners.Vulners(api_key=vulners_api_key)
-        cve_data = vulners_api.searchExploit(cve)
-        return [v['vhref'] for v in cve_data]
+    # if vulners_api_key:
+    #     vulners_api = vulners.Vulners(api_key=vulners_api_key)
+    #     cve_data = vulners_api.searchExploit(cve)
+    #     return [v['vhref'] for v in cve_data]
     
-    else:
-        print("VULNERS_API_KEY wasn't configured in the secrets!")
-    return []
+    # else:
+    #     print("VULNERS_API_KEY wasn't configured in the secrets!")
+    # return []
 
 
 def search_github(cve: str):
@@ -197,13 +197,14 @@ def generate_new_cve_message(cve_data: dict) -> str:
     message += f"💥  *CVSS*: {cve_data['cvss']}\n"
     message += f"📅  *Published*: {cve_data['Published']}\n"
     message += "📓  *Summary*: " 
-    message += cve_data["summary"] if len(cve_data["summary"]) < 400 else cve_data["summary"][:400] + "..."
+    message += cve_data["summary"] if len(cve_data["summary"]) < 500 else cve_data["summary"][:500] + "..."
     
     if cve_data["vulnerable_configuration"]:
         message += f"\n🔓  *Vulnerable* (_limit to 10_): " + ", ".join(cve_data["vulnerable_configuration"][:10])
     
     message += "\n\nℹ️  *More information* (_limit to 5_)\n" + "\n".join(cve_data["references"][:5])
     message += f"\n🔗 *GitHub Dork:* {cve_data['github_dork']}"
+    message += "\n"
     return message
 
 
