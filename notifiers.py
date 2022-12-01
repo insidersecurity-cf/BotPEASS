@@ -1,4 +1,4 @@
-
+import datetime
 import json
 import os
 
@@ -9,11 +9,14 @@ import requests
 
 def generate_new_cve_message(cve_data: dict) -> str:
     ''' Generate new CVE message for sending to slack '''
-
+    friendly_time = "%Y-%m-%d"
     # Emoji's for copy and pasting here: https://www.freecodecamp.org/news/all-emojis-emoji-list-for-copy-and-paste/
     message = f"🚨  *{cve_data['CVE_ID']}*  🚨\n"
     message += f"💥  *CVSSv3.1*: {cve_data['CVSSv3_Score']}\n"
-    message += f"📅  *Published*: {cve_data['Published']}\n"
+    #message += f"📅  *Published*: {datetime.datetime.strptime(cve_data['Published'], friendly_time)}"
+    message += f"📅  *Published*: {cve_data['Published']}"
+    #message += f" - *Modified*: {datetime.datetime.strptime(cve_data['Last_Modified'], friendly_time)}\n"
+    message += f" - *Modified*: {cve_data['Last_Modified']}\n"
     message += "📓  *Description*: " 
     message += cve_data["Description"] if len(cve_data["Description"]) < 500 else cve_data["Description"][:500] + "..."
     

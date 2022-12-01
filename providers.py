@@ -29,6 +29,8 @@ TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 class CVERetrieverNVD(object):
     def __init__(self):
+        global APP_DIR, SAVE_DIR
+        
         self.base_url_nvd = "https://services.nvd.nist.gov/rest/json/cves/2.0"
         # NOTE: NVD API rate limit w/o an API key: 5 requests in a rolling 30-second window (with key: 50 in 30s)
         self.url_nvd_latest = ''
@@ -137,9 +139,8 @@ class CVERetrieverNVD(object):
         now = datetime.datetime.now()
         self.updated_cve_timestamp = now.strftime(self.time_format)
         self.last_modified_cve = self.last_modified_cve.strftime(self.time_format)
-        print(f"[DBG] Query URL we are using: {self.base_url_nvd}?lastModStartDate={self.last_modified_cve}&lastModEndDate={now.strftime(self.time_format)}")
+        #print(f"[DBG] Query URL we are using: {self.base_url_nvd}?lastModStartDate={self.last_modified_cve}&lastModEndDate={now.strftime(self.time_format)}")
         return f"{self.base_url_nvd}?lastModStartDate={self.last_modified_cve}&lastModEndDate={self.updated_cve_timestamp}"
-        return
 
     def get_new_cves(self):
         """ Get latest CVE's from NVD's API service and store into dict. """
@@ -149,7 +150,7 @@ class CVERetrieverNVD(object):
             print("[!] Error contacting NVD API for CVEs")
             return
         nvd_json = json.loads(response.text)
-        print("[DBG] API json response has been loaded into a json object")
+        #print("[DBG] API json response has been loaded into a json object")
         results_total = nvd_json["totalResults"]
         print(f"[*] {results_total} CVE's pulled from NVD for processing, please wait...")
         for v in nvd_json["vulnerabilities"]:
@@ -223,6 +224,10 @@ class CVERetrieverNVD(object):
         filtered_cves = []
         for item in self.cve_new_dataset:
             # Which method(s) are we filtering by
+            if self.enable_score_filtering:
+                if not self._cvss_score_at_above(item['CVE_ID'], item['CVSSv3_Score'], self.min_score_threshold):
+                    # If score filtering is enabled, and CVE is below threshold, skip it altogether
+                    continue
             if self.search_scope == 'products':
                 if self._is_prod_keyword_present(item['Description']):
                     filtered_cves.append(item)
@@ -235,20 +240,20 @@ class CVERetrieverNVD(object):
 
             if self.include_high_severity:
                 # TODO: Don't think the 2nd part of this conditional is valid, will always be True bc I'm not checking for CVE_ID in keys
-                if self._cvss_score_at_above(item['CVE_ID'], item['CVSSv3_Score']) and item['CVE_ID'] not in filtered_cves:
-                    print(f"[DBG] High Severity CVE ({item['CVE_ID']}) identified and including in results")
+                if self._cvss_score_at_above(item['CVE_ID'], item['CVSSv3_Score'], self.high_severity_threshold) and item['CVE_ID'] not in filtered_cves:
+                    print(f"[*] High Severity CVE ({item['CVE_ID']}) identified and including in results")
                     filtered_cves.append(item)
             
         self.cve_new_dataset = filtered_cves
         return
 
-    def _cvss_score_at_above(self, cve, cvss_score: float):
+    def _cvss_score_at_above(self, cve, cvss_score: float, threshold: float):
         val = False
         if not cvss_score: 
-            print(f"[DBG] {cve} has no CVSS Score")
+            #print(f"[DBG] {cve} has no CVSS Score")
             return val
         try:
-            val = float(cvss_score) >= float(self.high_severity_threshold)
+            val = float(cvss_score) >= float(threshold)
         except ValueError:
             print("[DBG] ValueError evaluating CVSS Score to threshold, CVSS Score is: {}".format(cvss_score))
         return val
@@ -275,7 +280,7 @@ class CVERetrieverNVD(object):
         
         for item in self.cve_new_dataset:
             if item['CVE_ID'] in [w['CVE_ID'] for w in self.exploit_map]:
-                print(f"[DBG] CVE ({item['CVE_ID']} matches an exploit ID mapping")
+                #print(f"[DBG] CVE ({item['CVE_ID']} matches an exploit ID mapping")
                 for node in self.exploit_map:
                     if node['CVE_ID'] == item['CVE_ID']:
                         # TODO: Would a CVE have more than one exploit id mapping in this file?
