@@ -5,8 +5,8 @@ SEARCH_SCOPE: all_keywords
 INCLUDE_HIGH_SEVERITY: True
 HIGH_SEVERITY_THRESHOLD: 8.0
 
-# Enable including only matched keywords if CVE is also a high CVSS score
-ENABLE_SCORE_FILTERING: False
+# Enable including only matched keywords if CVE is also a high CVSS score (reduce noise of low-severity CVE's)
+ENABLE_SCORE_FILTERING: True
 MIN_SCORE_THRESHOLD: 6.0
 
 # If present, exclude CVE from results
