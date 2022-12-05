@@ -86,9 +86,10 @@ class CVERetrieverNVD(object):
             self.excluded_keywords = keywords_config["EXCLUDED_KEYWORDS"]
             print("[*] Loaded search keywords from config")
         
-        # Load MITRE Exploit Mapping Data
-        if not os.path.exists(self.mitre_exploit_file):
-            self.download_exploit_mapping()
+        # Load MITRE Exploit Mapping Data - TODO: Download a new one every few days, or?
+        #if not os.path.exists(self.mitre_exploit_file):
+            #self.download_exploit_mapping()
+        self.download_exploit_mapping()
         self.exploit_map = []
         fieldnames = ["ExploitId", "CveId"]     # The original headers of the MITRE Exploit map file
         with open(self.mitre_exploit_file, 'r') as mitre_file:
@@ -266,7 +267,7 @@ class CVERetrieverNVD(object):
         try:
             val = float(cvss_score) >= float(threshold)
         except ValueError:
-            print("[DBG] ValueError evaluating CVSS Score to threshold, CVSS Score is: {}".format(cvss_score))
+            if DEBUG: print("[DBG] ValueError evaluating CVSS Score to threshold, CVSS Score is: {}".format(cvss_score))
         return val
 
     def _is_summ_keyword_present(self, summary: str):
@@ -286,7 +287,7 @@ class CVERetrieverNVD(object):
     def check_cve_has_exploit(self):
         """ Search CVE's from our results to the exploit mapping to see if an Exploit-DB ID is listed. If so, add this to the dataset. """
         if not self.cve_new_dataset or not self.exploit_map:
-            print("[!] Either your new CVEs dataset or the Exploit mapping data is not loaded, skipping exploit ID search")
+            print("[!] Either your new CVEs dataset has no notable CVE's or the Exploit mapping data is not loaded, skipping exploit ID search")
             return
         
         for item in self.cve_new_dataset:
@@ -305,9 +306,11 @@ class CVERetrieverNVD(object):
         csv_file = open(self.mitre_exploit_file, 'w')
         csv_writer = csv.writer(csv_file)
         response = requests.get(url_mitre, allow_redirects=True)
-        #if response.status_code == 200:
-        print(f"[*] Response: {response.status_code} - Successfully requested MITRE exploit db mapping resource")
-        
+        if response.status_code == 200:
+            print(f"[*] Response: {response.status_code} - Successfully requested MITRE exploit db mapping resource")
+        else:
+            print(f"[!] Could not connect to retrieve MITRE Exploit mapping resource file, try again later")
+            return
         # Parse the html and extract the tables we need
         soup = BS(response.text, "html.parser")
         table = soup.find_all("table", attrs={"cellpadding": "2", "cellspacing": "2", "border": "2"})[1]
@@ -321,24 +324,22 @@ class CVERetrieverNVD(object):
         df = pd.DataFrame(datasets, columns=headings)   # Create dataframe with headings and the datasets
         df = df.astype('string')    # Convert padas objects (the default) to strings
         df.drop(df.tail(2).index, inplace=True) # Drop last two rows because they don't contain Exploit-db ID's
-        df[headings[0]] = df[headings[0]].str.replace(r'\D', '') # removing the prefix "EXPLOIT-DB" from the ExploitDBId column
+        df[headings[0]] = df[headings[0]].str.replace(r'\D', '', regex=True) # removing the prefix "EXPLOIT-DB" from the ExploitDBId column
         df[headings[1]] = df[headings[1]].str.rstrip("\n") # removing the trailing newline from the CVEId column
         df[headings[1]] = df[headings[1]].str.lstrip(' ') # removing the leading white space from the CVEId column
         df[headings[1]] = df[headings[1]].str.split(' ') # splitting the column based on white space within the entries
         df = df.set_index([headings[0]])[headings[1]].apply(pd.Series).stack().reset_index().drop('level_1',axis = 1).rename(columns = {0: headings[1]}) # creating multiple rows for exploits that correspond to multiple CVE #'s
-        print(df)
+        #print(df)
         n = len(df[headings[1]])
         csv_writer.writerow(headings)
         for i in range(n-1):
             csv_writer.writerow(df.loc[i])  # Write dataframe row to CSV file
         csv_file.close()
 
-        df.to_json("mitre_exploit_data.json", indent=2, orient='records') # Finally, write entire dataset to json
+        df.to_json(SAVE_DIR / "mitre_exploit_data.json", indent=2, orient='records') # Finally, write entire dataset to json
         return
 
     
-
-
 
 # NVD API Notes:
         # E.g. requests.get("https://services.nvd.nist.gov/rest/json/cves/2.0?hasKev", headers=headers)

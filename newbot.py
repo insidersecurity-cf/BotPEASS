@@ -7,21 +7,21 @@ import requests
 from notifiers import generate_new_cve_message, send_slack_mesage, send_telegram_message
 from providers import CVERetrieverNVD
 
-
+DEBUG = False
 
 
 def main():
     retriever = CVERetrieverNVD()
     data = retriever.get_new_cves()
     if data:
-        #print("[DBG] data keys: {}".format(data[0].keys()))
+        if DEBUG: print("[DBG] data keys: {}".format(data[0].keys()))
         for item in data:
             public_exploits = ''
             cve_message = generate_new_cve_message(item)
             if item.get('ExploitDB_ID') is not None:
-                print(f"[DBG] CVE *with exploit-db ID* Message:\n{cve_message}")
+                print(f"[*] CVE *with Exploit-db ID* Message:\n{cve_message}")
             else:
-                print(f"[DBG] CVE Message:\n{cve_message}")
+                print(f"[*] CVE Message:\n{cve_message}")
             send_slack_mesage(cve_message)
         
         print("[*] {} new CVE's to report this collection cycle".format(len(data)))
