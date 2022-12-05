@@ -19,7 +19,9 @@ def main():
             public_exploits = ''
             cve_message = generate_new_cve_message(item)
             if item.get('ExploitDB_ID') is not None:
-                print(f"[DBG] CVE (with exploit-db ID) Message:\n{cve_message}")
+                print(f"[DBG] CVE *with exploit-db ID* Message:\n{cve_message}")
+            else:
+                print(f"[DBG] CVE Message:\n{cve_message}")
             send_slack_mesage(cve_message)
         
         print("[*] {} new CVE's to report this collection cycle".format(len(data)))

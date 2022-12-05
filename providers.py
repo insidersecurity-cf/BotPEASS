@@ -1,4 +1,4 @@
-# File for proviers of data used in this application
+# File for providers of data (API's) used in this application
 
 import csv
 import datetime
@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup as BS
 import bopteas
 
 
-
+DEBUG = False
 APP_DIR = Path(__file__).resolve(strict=True).parent
 SAVE_DIR = APP_DIR / "output"
 
@@ -29,8 +29,8 @@ TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 class CVERetrieverNVD(object):
     def __init__(self):
-        global APP_DIR, SAVE_DIR
-        
+        global APP_DIR, SAVE_DIR, DEBUG
+
         self.base_url_nvd = "https://services.nvd.nist.gov/rest/json/cves/2.0"
         # NOTE: NVD API rate limit w/o an API key: 5 requests in a rolling 30-second window (with key: 50 in 30s)
         self.url_nvd_latest = ''
@@ -138,9 +138,13 @@ class CVERetrieverNVD(object):
         # ?lastModStartDate=2022-08-04T13:00:00
         now = datetime.datetime.now()
         self.updated_cve_timestamp = now.strftime(self.time_format)
+        self.last_new_cve = self.last_new_cve.strftime(self.time_format)
         self.last_modified_cve = self.last_modified_cve.strftime(self.time_format)
-        #print(f"[DBG] Query URL we are using: {self.base_url_nvd}?lastModStartDate={self.last_modified_cve}&lastModEndDate={now.strftime(self.time_format)}")
-        return f"{self.base_url_nvd}?lastModStartDate={self.last_modified_cve}&lastModEndDate={self.updated_cve_timestamp}"
+    
+        #q = f"{self.base_url_nvd}?lastModStartDate={self.last_modified_cve}&lastModEndDate={self.updated_cve_timestamp}"
+        q = f"{self.base_url_nvd}?pubStartDate={self.last_modified_cve}&pubEndDate={self.updated_cve_timestamp}"
+        if DEBUG: print(f"[DBG] Query URL we are using: {q}")
+        return q
 
     def get_new_cves(self):
         """ Get latest CVE's from NVD's API service and store into dict. """
@@ -150,7 +154,7 @@ class CVERetrieverNVD(object):
             print("[!] Error contacting NVD API for CVEs")
             return
         nvd_json = json.loads(response.text)
-        #print("[DBG] API json response has been loaded into a json object")
+        if DEBUG: print("[DBG] API json response has been loaded into a json object")
         results_total = nvd_json["totalResults"]
         print(f"[*] {results_total} CVE's pulled from NVD for processing, please wait...")
         for v in nvd_json["vulnerabilities"]:
@@ -189,6 +193,7 @@ class CVERetrieverNVD(object):
                 for entry in v['cve']['references']:
                     # Scrutinize what types of references we wish to include
                     if entry.get('tags') is not None:
+                        if DEBUG: print("[DBG] References raw tags: {}".format(entry['tags']))
                         if "Exploit" in entry['tags']:
                             exploit_references.append(entry['url'])
                         #if "Advisory" in entry['tags'] or "Patch" in entry['tags']:
@@ -225,7 +230,10 @@ class CVERetrieverNVD(object):
         for item in self.cve_new_dataset:
             # Which method(s) are we filtering by
             if self.enable_score_filtering:
-                if not self._cvss_score_at_above(item['CVE_ID'], item['CVSSv3_Score'], self.min_score_threshold):
+                if not item['CVSSv3_Score']:
+                    # Score filtering is enabled, but this one doesn't have a score, err on side of caution and include it in results
+                    item['CVSSv3_Score'] = "None yet"
+                elif not self._cvss_score_at_above(item['CVE_ID'], item['CVSSv3_Score'], self.min_score_threshold):
                     # If score filtering is enabled, and CVE is below threshold, skip it altogether
                     continue
             if self.search_scope == 'products':
@@ -240,9 +248,12 @@ class CVERetrieverNVD(object):
 
             if self.include_high_severity:
                 # TODO: Don't think the 2nd part of this conditional is valid, will always be True bc I'm not checking for CVE_ID in keys
-                if self._cvss_score_at_above(item['CVE_ID'], item['CVSSv3_Score'], self.high_severity_threshold) and item['CVE_ID'] not in filtered_cves:
-                    print(f"[*] High Severity CVE ({item['CVE_ID']}) identified and including in results")
-                    filtered_cves.append(item)
+                if self._cvss_score_at_above(item['CVE_ID'], item['CVSSv3_Score'], self.high_severity_threshold):
+                    if item['CVE_ID'] not in [x['CVE_ID'] for x in filtered_cves]:
+                        print(f"[*] High Severity CVE ({item['CVE_ID']}) identified and including in results")
+                        filtered_cves.append(item)
+                    else:
+                        if DEBUG: print(f"[DBG] Skipping {item['CVE_ID']} because it's already in the results list")
             
         self.cve_new_dataset = filtered_cves
         return

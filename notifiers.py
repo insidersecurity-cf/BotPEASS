@@ -3,6 +3,8 @@ import json
 import os
 
 import requests
+#from discord import Webhook, RequestsWebhookAdapter
+from discord import SyncWebhook
 
 
 #################### GENERATE MESSAGES #########################
@@ -16,7 +18,7 @@ def generate_new_cve_message(cve_data: dict) -> str:
     #message += f"📅  *Published*: {datetime.datetime.strptime(cve_data['Published'], friendly_time)}"
     message += f"📅  *Published*: {cve_data['Published']}"
     #message += f" - *Modified*: {datetime.datetime.strptime(cve_data['Last_Modified'], friendly_time)}\n"
-    message += f" - *Modified*: {cve_data['Last_Modified']}\n"
+    #message += f" - *Modified*: {cve_data['Last_Modified']}\n"
     message += "📓  *Description*: " 
     message += cve_data["Description"] if len(cve_data["Description"]) < 500 else cve_data["Description"][:500] + "..."
     
@@ -28,8 +30,8 @@ def generate_new_cve_message(cve_data: dict) -> str:
     if cve_data.get("\nExploit_References"):
         message += f"\n🔓  *Exploit References* (_limit 5_):\n" + "\n".join(cve_data["Exploit_References"][:5])
     
-    message += f"\n🔗 *GitHub Dork:* https://github.com/search?q={cve_data['CVE_ID']}"
-    message += "\nℹ️  *More information* (_limit to 5_):\n" + "\n".join(cve_data["Normal_References"][:5])
+    message += f"\n🔗  *GitHub Dork:* https://github.com/search?q={cve_data['CVE_ID']}"
+    message += "\nℹ️   *More information* (_limit to 5_):\n" + "\n".join(cve_data["Normal_References"][:5])
     message += "\n"
     return message
 
@@ -51,7 +53,7 @@ def generate_new_cve_message(cve_data: dict) -> str:
 #     return message
 
 
-#################### SEND MESSAGES #########################
+#################### SEND MESSAGES - SLACK #########################
 
 def send_slack_mesage(message: str):
     ''' Send a message to the slack group '''
@@ -89,6 +91,8 @@ def send_slack_mesage(message: str):
     return
 
 
+#################### SEND MESSAGES - TELEGRAM #########################
+
 def send_telegram_message(message: str, public_expls_msg: str):
     ''' Send a message to the telegram group '''
 
@@ -115,4 +119,29 @@ def send_telegram_message(message: str, public_expls_msg: str):
         resp = r.json()
         if not resp['ok']:
             print("ERROR SENDING TO TELEGRAM: " + message.split("\n")[0] + resp["description"])
+    return
+
+
+#################### SEND MESSAGES - DISCORD #########################
+
+def send_discord_message(message: str, public_expls_msg: str):
+    ''' Send a message to the discord channel webhook '''
+
+    discord_webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
+
+    if not discord_webhook_url:
+        print("DISCORD_WEBHOOK_URL wasn't configured in the secrets!")
+        return
+    
+    if public_expls_msg:
+        message = message + "\n" + public_expls_msg
+
+    message = message.replace("(", "\(").replace(")", "\)").replace("_", "").replace("[","\[").replace("]","\]").replace("{","\{").replace("}","\}").replace("=","\=")
+    #webhook = Webhook.from_url(discord_webhook_url, adapter=RequestsWebhookAdapter())
+    webhook = SyncWebhook.from_url(discord_webhook_url)
+    if public_expls_msg:
+        message = message + "\n" + public_expls_msg
+    
+    #webhook.send(message)
+    webhook.send(content=message)
     return
