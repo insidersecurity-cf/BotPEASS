@@ -29,7 +29,9 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       - name: Create local changes
-        run: git add config/bopteas.json
+        run: |
+            git add config/bopteas.json
+            git add output/mitre_exploit_map.csv
 
       - name: Commit results to Github
         run: |
