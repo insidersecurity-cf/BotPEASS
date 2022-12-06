@@ -8,6 +8,13 @@ from discord import SyncWebhook
 
 
 #################### GENERATE MESSAGES #########################
+def trim_datetime(dt):
+    TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+    DATE_FORMAT = "%Y-%m-%d"
+    date_only = datetime.datetime.strptime(dt, TIME_FORMAT)
+    date_only = date_only.strftime(DATE_FORMAT)
+    return date_only
+
 
 def generate_new_cve_message(cve_data: dict) -> str:
     ''' Generate new CVE message for sending to slack '''
@@ -19,14 +26,14 @@ def generate_new_cve_message(cve_data: dict) -> str:
     message += f"📅  *Published*: {cve_data['Published']}"
     #message += f" - *Modified*: {datetime.datetime.strptime(cve_data['Last_Modified'], friendly_time)}\n"
     #message += f" - *Modified*: {cve_data['Last_Modified']}\n"
-    message += "📓  *Description*: " 
+    message += "\n📓  *Description*: " 
     message += cve_data["Description"] if len(cve_data["Description"]) < 500 else cve_data["Description"][:500] + "..."
     
     # if cve_data["Vuln_Status"]:
     #     message += f"\n🔓  *Vulnerable* (_limit to 10_): " + ", ".join(cve_data["Vuln_Status"][:10])
     if cve_data.get('ExploitDB_ID') is not None:
         #message = "😈  *Public Exploits* (_limit 10_):\n" + "\n".join(public_expls[:20])
-        message += f"\n\n😈  *Exploit-DB IDs*: {cve_data['ExploitDB_ID']}"
+        message += f"\n\n😈  *Exploit-DB*: https://www.exploit-db.com/exploits/{cve_data['ExploitDB_ID']}"
     if cve_data.get("\nExploit_References"):
         message += f"\n🔓  *Exploit References* (_limit 5_):\n" + "\n".join(cve_data["Exploit_References"][:5])
     

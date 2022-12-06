@@ -17,25 +17,30 @@ from bs4 import BeautifulSoup as BS
 import bopteas
 
 
-DEBUG = False
+DEBUG = True
 APP_DIR = Path(__file__).resolve(strict=True).parent
 SAVE_DIR = APP_DIR / "output"
-
 LAST_NEW_CVE = datetime.datetime.now() - datetime.timedelta(days=1)
 LAST_MODIFIED_CVE = datetime.datetime.now() - datetime.timedelta(days=1)
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
-
+DATE_FORMAT = "%Y-%m-%d"
 
 
 class CVERetrieverNVD(object):
+    """ A class object to facilitate retrieving CVE data from NVD API, process and clean it, 
+        filter it based on user preference settings, and return a list of the filtered results
+        for further use by a separate script file.
+
+        API Reference: https://nvd.nist.gov/developers/vulnerabilities
+    """
     def __init__(self):
         global APP_DIR, SAVE_DIR, DEBUG
 
         self.base_url_nvd = "https://services.nvd.nist.gov/rest/json/cves/2.0"
         # NOTE: NVD API rate limit w/o an API key: 5 requests in a rolling 30-second window (with key: 50 in 30s)
-        self.url_nvd_latest = ''
         self.keywords_config_path = APP_DIR / 'config' / 'bopteas.yaml'
-        self.cve_settings_file = SAVE_DIR / 'bopteas.json'
+        #self.cve_settings_file = SAVE_DIR / 'bopteas.json'         # Old location
+        self.cve_settings_file = APP_DIR / 'config' / 'bopteas.json'
         self.mitre_exploit_file = SAVE_DIR / 'mitre_exploit_map.csv'
         #self.keywords_config_path = KEYWORDS_CONFIG_PATH
         self.cve_new_dataset = []
@@ -51,6 +56,8 @@ class CVERetrieverNVD(object):
         self.excluded_keywords = set()
         self.last_new_cve = datetime.datetime.now() - datetime.timedelta(days=1)
         self.last_modified_cve = datetime.datetime.now() - datetime.timedelta(days=1)
+        self.last_mitre_retrieval = datetime.datetime.now() - datetime.timedelta(days=10)
+        self.mitre_interval = 3
         self.time_format = "%Y-%m-%dT%H:%M:%S"
 
         if not os.path.exists(SAVE_DIR):
@@ -62,9 +69,8 @@ class CVERetrieverNVD(object):
             'cweId', 'hasKev', 'lastModStartDate', 'lastModEndDate', 'pubStartDate', 'pubEndDate',
             'resultsPerPage', 'startIndex', 'sourceIdentifier', 
         ]
-        self.first_run()
-        self.load_keywords()
         self.load_cve_settings_file()
+        self.load_keywords()
         return
     
     def first_run(self):
@@ -74,11 +80,16 @@ class CVERetrieverNVD(object):
     def load_keywords(self):
         with open(self.keywords_config_path, 'r') as yaml_file:
             keywords_config = yaml.safe_load(yaml_file)
-            self.search_scope = keywords_config["SEARCH_SCOPE"]
-            self.include_high_severity = keywords_config["INCLUDE_HIGH_SEVERITY"]
-            self.high_severity_threshold = float(keywords_config["HIGH_SEVERITY_THRESHOLD"])
-            self.enable_score_filtering = keywords_config['ENABLE_SCORE_FILTERING']
-            self.min_score_threshold = keywords_config['MIN_SCORE_THRESHOLD']
+            try:
+                self.search_scope = keywords_config["SEARCH_SCOPE"]
+                self.include_high_severity = keywords_config["INCLUDE_HIGH_SEVERITY"]
+                self.high_severity_threshold = float(keywords_config["HIGH_SEVERITY_THRESHOLD"])
+                self.enable_score_filtering = keywords_config['ENABLE_SCORE_FILTERING']
+                self.min_score_threshold = keywords_config['MIN_SCORE_THRESHOLD']
+                self.mitre_interval = keywords_config['MITRE_INTERVAL']
+            except KeyError:
+                print("[!] Your bopteas.yaml config file is missing new feature preferences. Using defaults for now which are defined in the class CVERetrieverNVD __init__ function")
+                pass
             self.product_keywords = keywords_config["PRODUCT_KEYWORDS"]
             self.product_keywords_i = keywords_config["PRODUCT_KEYWORDS_I"]
             self.description_keywords = keywords_config["DESCRIPTION_KEYWORDS"]
@@ -86,9 +97,7 @@ class CVERetrieverNVD(object):
             self.excluded_keywords = keywords_config["EXCLUDED_KEYWORDS"]
             print("[*] Loaded search keywords from config")
         
-        # Load MITRE Exploit Mapping Data - TODO: Download a new one every few days, or?
-        #if not os.path.exists(self.mitre_exploit_file):
-            #self.download_exploit_mapping()
+        # Load MITRE Exploit Mapping Data
         self.download_exploit_mapping()
         self.exploit_map = []
         fieldnames = ["ExploitId", "CveId"]     # The original headers of the MITRE Exploit map file
@@ -111,6 +120,15 @@ class CVERetrieverNVD(object):
                                                                self.time_format)
                 self.last_modified_cve = datetime.datetime.strptime(self.cve_data_fromfile["LAST_MODIFIED_CVE"], 
                                                                     self.time_format)
+                try:
+                    # Tracking for periodic download of latest MITRE exploit-db mapping data
+                    self.last_mitre_retrieval = datetime.datetime.strptime(self.cve_data_fromfile['LAST_MITRE_RETRIEVAL'], self.time_format)
+                    if DEBUG: print("[DBG] Date timestamps all loaded from settings json file")
+                except Exception as e:
+                    # In case this is run but key is not yet in the file
+                    if DEBUG: print("[DBG] Failed to load LAST_MITRE_RETRIEVAL from config file")
+                    pass
+                
         except Exception as e:
             print("[*] Error opening CVE Data JSON file, keeping default timestamps for search")
             pass
@@ -118,39 +136,34 @@ class CVERetrieverNVD(object):
 
     def update_cve_settings_file(self):
         """ Save this cycle's collection metadata for next run. """
-        if not os.path.exists(self.cve_settings_file):
-            print("[!] CVE Data JSON file doesn't exist, failed to save updated timestamps!")
-            return
+
+        if isinstance(self.last_mitre_retrieval, datetime.datetime):
+            self.last_mitre_retrieval = self.last_mitre_retrieval.strftime(self.time_format)
         with open(self.cve_settings_file, 'w') as json_file:
             # Update our timestamp values with the updated timestamp created via self._build_query()
             json.dump({
                 "LAST_NEW_CVE": self.updated_cve_timestamp,
                 "LAST_MODIFIED_CVE": self.updated_cve_timestamp,
-            }, json_file)
-        # with open(self.keywords_config_path, 'w') as yaml_file:
-        #     yaml.dump({
-        #         "LAST_NEW_CVE": self.last_new_cve.strftime(self.time_format),
-        #         "LAST_MODIFIED_CVE": self.last_modified_cve.strftime(self.time_format),
-        #     }, yaml_file)
+                "LAST_MITRE_RETRIEVAL": self.last_mitre_retrieval
+            }, json_file, default=str)
         return
 
     def _build_query(self):
         # Query syntax for a typical grab of latest CVE's from NVD API 2.0
-        # ?lastModStartDate=2022-08-04T13:00:00
         now = datetime.datetime.now()
         self.updated_cve_timestamp = now.strftime(self.time_format)
         self.last_new_cve = self.last_new_cve.strftime(self.time_format)
         self.last_modified_cve = self.last_modified_cve.strftime(self.time_format)
     
         #q = f"{self.base_url_nvd}?lastModStartDate={self.last_modified_cve}&lastModEndDate={self.updated_cve_timestamp}"
-        q = f"{self.base_url_nvd}?pubStartDate={self.last_modified_cve}&pubEndDate={self.updated_cve_timestamp}"
+        q = f"{self.base_url_nvd}?pubStartDate={self.last_new_cve}&pubEndDate={self.updated_cve_timestamp}"
         if DEBUG: print(f"[DBG] Query URL we are using: {q}")
         return q
 
     def get_new_cves(self):
         """ Get latest CVE's from NVD's API service and store into dict. """
         response = requests.get(self._build_query())
-        #time.sleep(6)   # NVD recommends sleeping 6 secs between requests
+        #time.sleep(6)   # NVD recommends sleeping 6 secs between requests, but we're only making 1
         if response.status_code != 200:
             print("[!] Error contacting NVD API for CVEs")
             return
@@ -159,7 +172,7 @@ class CVERetrieverNVD(object):
         results_total = nvd_json["totalResults"]
         print(f"[*] {results_total} CVE's pulled from NVD for processing, please wait...")
         for v in nvd_json["vulnerabilities"]:
-            #print("\n\n[DBG] Enum v: {}".format(v))
+            if DEBUG: print("\n\n[DBG] CVE Raw record (v): {}".format(v))
             cve_id = v["cve"]['id']
             try:
                 cve_description = v['cve']['descriptions'][0]['value']
@@ -181,12 +194,17 @@ class CVERetrieverNVD(object):
             last_modified = v['cve']['lastModified']
             vuln_status = v['cve']['vulnStatus']
 
+            cwe = []
             try:
-                cwe = v['cve']['weaknesses'][0]['description'][0]['value']
-                if cwe == "NVD-CWE-noinfo":
-                    cwe = ''
+                for entry in v['cve']['weaknesses'][0]['description']:
+                    if entry['lang'] == 'en':
+                        if entry['value'] == "NVD-CWE-noinfo":
+                            continue
+                        else:
+                            cwe.append(entry['value'])
             except KeyError:
-                cwe = ''
+                # This CVE has no defined CWE's
+                pass
             # -- Fine tune our references
             exploit_references = []
             normal_references = []
@@ -194,14 +212,18 @@ class CVERetrieverNVD(object):
                 for entry in v['cve']['references']:
                     # Scrutinize what types of references we wish to include
                     if entry.get('tags') is not None:
-                        if DEBUG: print("[DBG] References raw tags: {}".format(entry['tags']))
+                        if DEBUG:
+                            print("[DBG] References raw tags: {}".format(entry['tags']))
                         if "Exploit" in entry['tags']:
                             exploit_references.append(entry['url'])
                         #if "Advisory" in entry['tags'] or "Patch" in entry['tags']:
                         if any(w in ["Third Party Advisory", "Vendor Advisory"] for w in entry['tags']):
                             normal_references.append(entry['url'])
+                    else:
+                        # Many of the CVE's do not have tags for the references, call them normal
+                        normal_references.append(entry['url'])
             except KeyError:
-                print("[DBG] KeyError searching references - {}".format(entry))
+                if DEBUG: print("[DBG] KeyError searching references - {}".format(entry))
                 pass
             record = {
                 "CVE_ID": cve_id,
@@ -213,14 +235,15 @@ class CVERetrieverNVD(object):
                 "Published": published,
                 "Last_Modified": last_modified,
                 "Vuln_Status": vuln_status,
-                "CWE": cwe,
-                "Exploit_References": exploit_references,
-                "Normal_References": normal_references,
+                "CWE": cwe,                                 # List of CWE's
+                "Exploit_References": exploit_references,   # List of exploit categorized refs
+                "Normal_References": normal_references,     # List of normal refs
             }
             self.cve_new_dataset.append(record)
-            #print("[DBG] CVE entry appended to dataset: {}".format(record))
+            if DEBUG: print("[DBG] CVE entry appended to dataset: {}".format(record))
         
         # With new dataset, run it through filtering function
+        # TODO: Would be more efficient if we could filter out CVE's before fully cleaning all data
         self.filter_cves()
         self.check_cve_has_exploit()
         self.update_cve_settings_file()
@@ -292,7 +315,7 @@ class CVERetrieverNVD(object):
         
         for item in self.cve_new_dataset:
             if item['CVE_ID'] in [w['CVE_ID'] for w in self.exploit_map]:
-                #print(f"[DBG] CVE ({item['CVE_ID']} matches an exploit ID mapping")
+                if DEBUG: print(f"[DBG] CVE ({item['CVE_ID']} matches an exploit ID mapping")
                 for node in self.exploit_map:
                     if node['CVE_ID'] == item['CVE_ID']:
                         # TODO: Would a CVE have more than one exploit id mapping in this file?
@@ -302,10 +325,19 @@ class CVERetrieverNVD(object):
 
     def download_exploit_mapping(self):
         """ Retrieve the current Exploit mapping from MITRE """
+        date_threshold = datetime.datetime.now() - datetime.timedelta(days=int(self.mitre_interval))
+        if os.path.exists(self.mitre_exploit_file):
+            if self.last_mitre_retrieval < date_threshold:
+                if DEBUG: print("[DBG] Last MITRE data retrieval is before threshold, will get fresh data")
+            else:
+                if DEBUG: print("[DBG] Last MITRE data retrieval is fresh and will be used")
+                return
         url_mitre = "https://cve.mitre.org/data/refs/refmap/source-EXPLOIT-DB.html"
         csv_file = open(self.mitre_exploit_file, 'w')
         csv_writer = csv.writer(csv_file)
+
         response = requests.get(url_mitre, allow_redirects=True)
+
         if response.status_code == 200:
             print(f"[*] Response: {response.status_code} - Successfully requested MITRE exploit db mapping resource")
         else:
@@ -314,6 +346,7 @@ class CVERetrieverNVD(object):
         # Parse the html and extract the tables we need
         soup = BS(response.text, "html.parser")
         table = soup.find_all("table", attrs={"cellpadding": "2", "cellspacing": "2", "border": "2"})[1]
+
         headings = ["ExploitId", "CveId"]
         datasets = []
         for row in table.find_all("tr")[0:]:
@@ -329,7 +362,7 @@ class CVERetrieverNVD(object):
         df[headings[1]] = df[headings[1]].str.lstrip(' ') # removing the leading white space from the CVEId column
         df[headings[1]] = df[headings[1]].str.split(' ') # splitting the column based on white space within the entries
         df = df.set_index([headings[0]])[headings[1]].apply(pd.Series).stack().reset_index().drop('level_1',axis = 1).rename(columns = {0: headings[1]}) # creating multiple rows for exploits that correspond to multiple CVE #'s
-        #print(df)
+
         n = len(df[headings[1]])
         csv_writer.writerow(headings)
         for i in range(n-1):
@@ -337,25 +370,33 @@ class CVERetrieverNVD(object):
         csv_file.close()
 
         df.to_json(SAVE_DIR / "mitre_exploit_data.json", indent=2, orient='records') # Finally, write entire dataset to json
+        now = datetime.datetime.now()
+        self.last_mitre_retrieval = now.strftime(self.time_format)
         return
 
-    
 
 # NVD API Notes:
-        # E.g. requests.get("https://services.nvd.nist.gov/rest/json/cves/2.0?hasKev", headers=headers)
-        #kev_query = "hasKev"
+    # E.g. requests.get("https://services.nvd.nist.gov/rest/json/cves/2.0?hasKev", headers=headers)
+    #kev_query = "hasKev"
 
-        # param "keywordSearch" returns any CVE where a word or phrase is found in the description
-        # param "keywordExactMatch" is a toggle, that when present in the query, finds only exact matches
-        #   E.g. https://api/2.0?keywordSearch=Microsoft Outlook&keywordExactMatch
+    # param "keywordSearch" returns any CVE where a word or phrase is found in the description
+    # param "keywordExactMatch" is a toggle, that when present in the query, finds only exact matches
+    #   E.g. https://api/2.0?keywordSearch=Microsoft Outlook&keywordExactMatch
 
-        # date values must be in ISO-8061 date/time format:
-        # [YYYY]["-"][MM]["-"][DD]["T"][HH][":"][SS][Z]     ?lastModStartDate=2022-08-04T13:00:00
+    # date values must be in ISO-8061 date/time format:
+    # [YYYY]["-"][MM]["-"][DD]["T"][HH][":"][SS][Z]     ?lastModStartDate=2022-08-04T13:00:00
 
-        # page limit / resultsPerPage - default value and max page limit is 2,000 results
-
+    # page limit / resultsPerPage - default value and max page limit is 2,000 results
 
 
 if __name__ == '__main__':
+    # This isn't intended to be the way this file is run, 
+    # just an example for use in a separate file (e.g. newbot.py)
     retriever = CVERetrieverNVD()
-    retriever.get_new_cves()
+    data = retriever.get_new_cves()
+    if data:
+        for item in data:
+            descrip = item['Description'] if len(item["Description"]) < 200 else item["Description"][:200] + "..."
+            print(f"[*] {item['CVE_ID']} - CVSS: {item['CVSSv3_Score']} - {descrip}\n")
+    else:
+        print("[*] No new CVE's matching your search scope for this collection cycle")

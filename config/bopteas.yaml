@@ -10,6 +10,9 @@ HIGH_SEVERITY_THRESHOLD: 9.5
 ENABLE_SCORE_FILTERING: True
 MIN_SCORE_THRESHOLD: 6.0
 
+# Update MITRE Exploit-DB dataset every 'n' days
+MITRE_INTERVAL: 3
+
 # If present, exclude CVE from results
 EXCLUDED_KEYWORDS:
 - SourceCodester
