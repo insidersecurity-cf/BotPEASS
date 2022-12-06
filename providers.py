@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup as BS
 import bopteas
 
 
-DEBUG = True
+DEBUG = False
 APP_DIR = Path(__file__).resolve(strict=True).parent
 SAVE_DIR = APP_DIR / "output"
 LAST_NEW_CVE = datetime.datetime.now() - datetime.timedelta(days=1)
@@ -173,11 +173,21 @@ class CVERetrieverNVD(object):
         print(f"[*] {results_total} CVE's pulled from NVD for processing, please wait...")
         for v in nvd_json["vulnerabilities"]:
             if DEBUG: print("\n\n[DBG] CVE Raw record (v): {}".format(v))
+            # Start with all values empty on each iteration
+            cve_description = ''
+            cvssv3_score = ''
+            cvssv3_severity = ''
+            cvssv3_exploitability = ''
+            cvssv3_impact = ''
+            published = ''
+            last_modified = ''
+            vuln_status = ''
+            cwe = []
+
             cve_id = v["cve"]['id']
             try:
                 cve_description = v['cve']['descriptions'][0]['value']
             except KeyError:
-                cve_description = ''
                 print("[DBG] KeyError with cve_description, raw data: {}".format(v['cve']['descriptions']))
             try:
                 cvssv3_score = v['cve']['metrics']['cvssMetricV31'][0]['cvssData']['baseScore']
@@ -185,16 +195,12 @@ class CVERetrieverNVD(object):
                 cvssv3_exploitability = v['cve']['metrics']['cvssMetricV31'][0]['exploitabilityScore']
                 cvssv3_impact = v['cve']['metrics']['cvssMetricV31'][0]['impactScore']
             except KeyError:
-                cvssv3_score = ''
-                cvssv3_severity = ''
-                cvssv3_exploitability = ''
-                cvssv3_impact = ''
+                pass
             
             published = v['cve']['published']
             last_modified = v['cve']['lastModified']
             vuln_status = v['cve']['vulnStatus']
 
-            cwe = []
             try:
                 for entry in v['cve']['weaknesses'][0]['description']:
                     if entry['lang'] == 'en':
