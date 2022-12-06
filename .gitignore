@@ -27,9 +27,6 @@ Temporary Items
 .apdisk
 
 
-# Ignore the automatic updates from cron runs
-bopteas.json
-
 # IDE or virtualenvs
 venv
 .venv

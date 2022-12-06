@@ -111,7 +111,7 @@ class CVERetrieverNVD(object):
 
     def load_cve_settings_file(self):
         if not os.path.exists(self.cve_settings_file):
-            print("[!] CVE Data JSON file doesn't exist yet!")
+            print("[!] Timestamp tracker bopteas.json file doesn't exist yet at {}".format(self.cve_settings_file))
             return
         try:
             with open(self.cve_settings_file, 'r') as json_file:
