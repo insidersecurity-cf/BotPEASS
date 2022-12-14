@@ -21,15 +21,13 @@ EXCLUDED_KEYWORDS:
 DESCRIPTION_KEYWORDS_I:
 - auth bypass
 - authentication bypass
+- default credentials
+- default password
 - deserialization
 - sql injection
-- sqli
 - privesc
-- lfi
 - local file inclusion
-- rfi
 - remote file inclusion
-- rce
 - remote code execution
 - " sudo "
 - " suid "
@@ -40,12 +38,13 @@ DESCRIPTION_KEYWORDS_I:
 
 DESCRIPTION_KEYWORDS:
 - User Account Control
+- LFI
+- RCE
+- RFI
+- SQLi
 
 PRODUCT_KEYWORDS_I:
-- sudo
-- docker
 - kubernetes
-- lxc
 
 PRODUCT_KEYWORDS:
 - " AEM "
@@ -57,8 +56,9 @@ PRODUCT_KEYWORDS:
 - Cisco
 - Citrix
 - CrowdStrike
-- Drupal
+- Docker
 - Fortinet Fortigate
+- Groovy
 - IBM HTTP
 - Juniper
 - Magento
@@ -69,9 +69,10 @@ PRODUCT_KEYWORDS:
 - Python Django
 - Python Flask
 - Spring Boot
+- Spring Core
 - Spring Security
+- SwaggerUI
 - Symantec Endpoint
 - Tomcat
 - Trend Micro
 - VMware Horizon
-- WordPress
