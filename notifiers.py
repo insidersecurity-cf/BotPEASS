@@ -16,7 +16,7 @@ def trim_datetime(dt):
     return date_only
 
 
-def generate_new_cve_message(cve_data: dict) -> str:
+def generate_new_cve_message(cve_data: dict, github_addendum=None) -> str:
     ''' Generate new CVE message for sending to slack '''
     friendly_time = "%Y-%m-%d"
     # Emoji's for copy and pasting here: https://www.freecodecamp.org/news/all-emojis-emoji-list-for-copy-and-paste/
@@ -37,7 +37,11 @@ def generate_new_cve_message(cve_data: dict) -> str:
     if cve_data.get("\nExploit_References"):
         message += f"\n🔓  *Exploit References* (_limit 5_):\n" + "\n".join(cve_data["Exploit_References"][:5])
     
-    message += f"\n🔗  *GitHub Dork:* https://github.com/search?q={cve_data['CVE_ID']}"
+    if github_addendum:
+        message += f"\n🔗  *GitHub Dork:* https://github.com/search?q={cve_data['CVE_ID']}{github_addendum}"
+    else:
+        message += f"\n🔗  *GitHub Dork:* https://github.com/search?q={cve_data['CVE_ID']}"
+
     message += "\nℹ️   *More information* (_limit to 5_):\n" + "\n".join(cve_data["Normal_References"][:5])
     message += "\n"
     return message

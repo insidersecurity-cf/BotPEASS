@@ -72,10 +72,6 @@ class CVERetrieverNVD(object):
         self.load_cve_settings_file()
         self.load_keywords()
         return
-    
-    def first_run(self):
-        pass
-        return
         
     def load_keywords(self):
         with open(self.keywords_config_path, 'r') as yaml_file:
@@ -90,13 +86,19 @@ class CVERetrieverNVD(object):
             except KeyError:
                 print("[!] Your bopteas.yaml config file is missing new feature preferences. Using defaults for now which are defined in the class CVERetrieverNVD __init__ function")
                 pass
+
+            # NOTE: These all load as python list type objects
             self.product_keywords = keywords_config["PRODUCT_KEYWORDS"]
             self.product_keywords_i = keywords_config["PRODUCT_KEYWORDS_I"]
             self.description_keywords = keywords_config["DESCRIPTION_KEYWORDS"]
             self.description_keywords_i = keywords_config["DESCRIPTION_KEYWORDS_I"]
             self.excluded_keywords = keywords_config["EXCLUDED_KEYWORDS"]
-            self.gitdork_excluded_repos = keywords_config["GITDORK_REPO_EXCLUSIONS"]
-            print("[*] Loaded search & exclusion keywords from config")
+            # NOTE: %3A is the url-encoded form of a colon ":"
+            self.gitdork_excluded_repos_string = "+-repo:".join([x for x in keywords_config["GITDORK_REPO_EXCLUSIONS"]])
+            # Must also add it to the front because join() doesn't do the very front
+            self.gitdork_excluded_repos_string = f"+-repo:{self.gitdork_excluded_repos_string}"
+            
+        print("[*] Loaded search & exclusion keywords from config")
         
         # Load MITRE Exploit Mapping Data
         self.download_exploit_mapping()
@@ -109,6 +111,10 @@ class CVERetrieverNVD(object):
                 self.exploit_map.append({'CVE_ID': row['CveId'], 'ExploitDB_ID': row['ExploitId']})
             print("[*] MITRE Exploit-DB ID Mapping has been loaded")
         return
+    
+    def get_github_exclusions_addendum(self):
+        """ From the config, send over the URL-formatted query addendum to tune all built URLs. """
+        return self.gitdork_excluded_repos_string
 
     def load_cve_settings_file(self):
         if not os.path.exists(self.cve_settings_file):
