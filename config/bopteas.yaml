@@ -45,6 +45,7 @@ DESCRIPTION_KEYWORDS:
 
 PRODUCT_KEYWORDS_I:
 - kubernetes
+- Microsoft O365
 
 PRODUCT_KEYWORDS:
 - " AEM "
@@ -53,8 +54,10 @@ PRODUCT_KEYWORDS:
 - Adobe CQ
 - Adobe Experience Platform
 - Adobe Experience Manager
+- Atlassian
 - Cisco
 - Citrix
+- Confluence
 - CrowdStrike
 - Docker
 - Fortinet Fortigate
@@ -76,3 +79,21 @@ PRODUCT_KEYWORDS:
 - Tomcat
 - Trend Micro
 - VMware Horizon
+
+# Repo's to exclude when crafting the Github CVE search URL
+GITDORK_REPO_EXCLUSIONS:
+- CVEProject/cvelist
+- CVEProject/cvelistV5
+- EXP-Tools/threat-broadcast
+- Nazicc/threat-broadcast
+- cloudsecurityalliance/gsd-database
+- oasis-open/cti-stix-common-objects
+- olbat/nvdcve
+- ChuntBot/FeedArchive
+- nomi-sec/NVD-Database
+- github/advisory-database
+- goncalor/cve-ark
+- tholian-network/vulnerabilities
+- sthagen/CVEProject-cvelist
+- trickest/cve
+- Patrowl/PatrowlHearsData

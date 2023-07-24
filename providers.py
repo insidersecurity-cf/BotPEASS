@@ -95,7 +95,8 @@ class CVERetrieverNVD(object):
             self.description_keywords = keywords_config["DESCRIPTION_KEYWORDS"]
             self.description_keywords_i = keywords_config["DESCRIPTION_KEYWORDS_I"]
             self.excluded_keywords = keywords_config["EXCLUDED_KEYWORDS"]
-            print("[*] Loaded search keywords from config")
+            self.gitdork_excluded_repos = keywords_config["GITDORK_REPO_EXCLUSIONS"]
+            print("[*] Loaded search & exclusion keywords from config")
         
         # Load MITRE Exploit Mapping Data
         self.download_exploit_mapping()
@@ -260,12 +261,18 @@ class CVERetrieverNVD(object):
         for item in self.cve_new_dataset:
             # Which method(s) are we filtering by
             if self.enable_score_filtering:
-                if not item['CVSSv3_Score']:
+                if not item.get('CVSSv3_Score'):
                     # Score filtering is enabled, but this one doesn't have a score, err on side of caution and include it in results
-                    item['CVSSv3_Score'] = "None yet"
+                    item['CVSSv3_Score'] = "Not Yet Scored"
                 elif not self._cvss_score_at_above(item['CVE_ID'], item['CVSSv3_Score'], self.min_score_threshold):
                     # If score filtering is enabled, and CVE is below threshold, skip it altogether
                     continue
+
+            # Before anything, skip excluded patterns first
+            if self._is_excluded_keyword_present(item['Description']):
+                print(f"[-] Skipping CVE entry that matches an excluded keyword ({item['CVE_ID']})")
+                continue
+
             if self.search_scope == 'products':
                 if self._is_prod_keyword_present(item['Description']):
                     filtered_cves.append(item)
@@ -326,7 +333,6 @@ class CVERetrieverNVD(object):
                     if node['CVE_ID'] == item['CVE_ID']:
                         # TODO: Would a CVE have more than one exploit id mapping in this file?
                         item['ExploitDB_ID'] = node['ExploitDB_ID']
-        
         return
 
     def download_exploit_mapping(self):
