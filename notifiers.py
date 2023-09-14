@@ -1,49 +1,122 @@
-import datetime
-import json
+# import datetime
 import os
+from datetime import datetime
 
 import requests
 #from discord import Webhook, RequestsWebhookAdapter
 from discord import SyncWebhook
 
+from core.epss import EPSSGopher
 
-#################### GENERATE MESSAGES #########################
+
 def trim_datetime(dt):
     TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
     DATE_FORMAT = "%Y-%m-%d"
-    date_only = datetime.datetime.strptime(dt, TIME_FORMAT)
+    date_only = datetime.strptime(dt, TIME_FORMAT)
     date_only = date_only.strftime(DATE_FORMAT)
     return date_only
 
 
+def convert_string_to_datetime(raw_string):
+    """ Convert a raw timestamp string to a YYYY-MM-DD HH:MM:SS date & time string. """
+    # input_date_format = "%Y-%m-%d %I:%M:%S %p"  # 12-hr time with AM/PM
+    # output_date_format = "%Y-%m-%d %H:%M:%S"    # 24-hr time
+    date_obj = None
+    found = False
+    input_date_formats = [
+        # "%Y-%m-%d %I:%M:%S %p",
+        # "%d/%m/%Y %I:%M %p",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%I:%M:%S+00:00",
+        "%Y-%m-%dT%I:%M:%S+00:00",
+        "%b %d, %Y",                    # Commonly seen in Qualys Vuln exports
+    ]
+
+    while 1:
+        for format in input_date_formats:
+            try:
+                # log.debug(f"Checking date pattern: {format=}")
+                date_obj = datetime.strptime(raw_string, format)
+                found = True
+            except ValueError as e:
+                # log.debug(f"ValueError exception: {e}")
+                # print(e)
+                continue
+            # If we manage to create a datetime object without exception, we found
+            # the right pattern
+            # log.debug(f"Found correct datetime pattern: {format=}")
+            break
+
+        if not found:
+            print(f"Did not find correct datetime pattern from this string: {raw_string=}")
+            date_obj = datetime.fromisoformat(raw_string)
+            print("Stored instead using fromisoformat()")
+        break
+
+    # date_obj = datetime.strptime(raw_string, input_date_format)
+    # return f"{date_obj:%Y-%m-%d %H:%M:%S}"
+    return date_obj
+
+
+#################### GENERATE MESSAGES #########################
 def generate_new_cve_message(cve_data: dict, github_addendum=None) -> str:
-    ''' Generate new CVE message for sending to slack '''
+    """
+    Generate new CVE message for sending to slack
+    """
     friendly_time = "%Y-%m-%d"
+    condense_message = True
+
+    # TODO: If config has this integration enabled do it, else skip
+    gopher_epss = EPSSGopher()
+    epss = float(gopher_epss.get_score_for_cve(cve_data["CVE_ID"]))
+    # log.debug(f"{row_data['CVE']} has EPSS: {float(epss):.2f}")
+    # log.debug(f"{row_data['CVE']} has EPSS: {epss}")
+    epss_percentage = epss * 100
+    print(f"[*] {cve_data['CVE_ID']} has EPSS: {epss:.2f} ({epss_percentage} %)")
+    if round(epss_percentage) == 0:
+        print("[DBG] EPSS for this CVE is rounded to 0%")
+    cve_data["EPSS"] = f"{epss:.0f} %"
+
     # Emoji's for copy and pasting here: https://www.freecodecamp.org/news/all-emojis-emoji-list-for-copy-and-paste/
-    message = f"🚨  *{cve_data['CVE_ID']}*  🚨\n"
-    message += f"💥  *CVSSv3.1*: {cve_data['CVSSv3_Score']}\n"
-    #message += f"📅  *Published*: {datetime.datetime.strptime(cve_data['Published'], friendly_time)}"
-    message += f"📅  *Published*: {cve_data['Published']}"
-    #message += f" - *Modified*: {datetime.datetime.strptime(cve_data['Last_Modified'], friendly_time)}\n"
-    #message += f" - *Modified*: {cve_data['Last_Modified']}\n"
-    message += "\n📓  *Description*: " 
-    message += cve_data["Description"] if len(cve_data["Description"]) < 500 else cve_data["Description"][:500] + "..."
+    # 💥 📅
+
+    message = ""
+    if condense_message:
+        message = f"🚨  *{cve_data['CVE_ID']}*  CVSS: {cve_data['CVSSv3_Score']}  EPSS: {cve_data.get('EPSS', '')}\n"
+    else:
+        # -- Original message breakdown --
+        message = f"🚨  *{cve_data['CVE_ID']}*  🚨\n"
+        message += f"*CVSSv3.1*: {cve_data['CVSSv3_Score']}\n"
+        if cve_data.get("EPSS") is not None:
+            message += f"*EPSS*: {cve_data['EPSS']}\n"
     
-    # if cve_data["Vuln_Status"]:
-    #     message += f"\n🔓  *Vulnerable* (_limit to 10_): " + ", ".join(cve_data["Vuln_Status"][:10])
     if cve_data.get('ExploitDB_ID') is not None:
         #message = "😈  *Public Exploits* (_limit 10_):\n" + "\n".join(public_expls[:20])
-        message += f"\n\n😈  *Exploit-DB*: https://www.exploit-db.com/exploits/{cve_data['ExploitDB_ID']}"
+        message += f"😈  *Exploit-DB*: <https://www.exploit-db.com/exploits/{cve_data['ExploitDB_ID']}|EDB {cve_data['ExploitDB_ID']} Link>\n"
+
+    # -- Rest of Message, regardless --
+    # message += f"  *Published*: {datetime.datetime.strptime(cve_data['Published'], friendly_time)}"
+    message += f"📅  *Published*: {convert_string_to_datetime(cve_data['Published']):%Y-%m-%d}"
+    # message += f" - *Modified*: {datetime.datetime.strptime(cve_data['Last_Modified'], friendly_time)}\n"
+    message += f" - *Modified*: {convert_string_to_datetime(cve_data['Last_Modified']):%Y-%m-%d}\n"
+    
+    message += "📓  *Description*: " 
+    message += cve_data["Description"] if len(cve_data["Description"]) < 500 else cve_data["Description"][:500] + "...\n"
+    
     if cve_data.get("\nExploit_References"):
         message += f"\n🔓  *Exploit References* (_limit 5_):\n" + "\n".join(cve_data["Exploit_References"][:5])
     
     if github_addendum:
-        message += f"\n🔗  *GitHub Dork:* https://github.com/search?q={cve_data['CVE_ID']}{github_addendum}"
+        message += f"🔗  *GitHub Dork:* <https://github.com/search?q={cve_data['CVE_ID']}{github_addendum}|Search GitHub>\n"
     else:
-        message += f"\n🔗  *GitHub Dork:* https://github.com/search?q={cve_data['CVE_ID']}"
+        message += f"🔗  *GitHub Dork:* <https://github.com/search?q={cve_data['CVE_ID']}|Search GitHub>\n"
 
-    message += "\nℹ️   *More information* (_limit to 5_):\n" + "\n".join(cve_data["Normal_References"][:5])
-    message += "\n"
+    message += "ℹ️   *More information* (_limit to 5_):\n" + "\n".join(cve_data["Normal_References"][:5])
+
+    # Don't need a newline at the end of the message string
+    message = message.rstrip()
+    # message += "\n"
+
     return message
 
 

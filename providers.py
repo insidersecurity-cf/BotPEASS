@@ -33,8 +33,10 @@ class CVERetrieverNVD(object):
 
         API Reference: https://nvd.nist.gov/developers/vulnerabilities
     """
-    def __init__(self):
+    def __init__(self, testing=False):
         global APP_DIR, SAVE_DIR, DEBUG
+
+        self.testing = testing
 
         self.base_url_nvd = "https://services.nvd.nist.gov/rest/json/cves/2.0"
         # NOTE: NVD API rate limit w/o an API key: 5 requests in a rolling 30-second window (with key: 50 in 30s)
@@ -144,8 +146,13 @@ class CVERetrieverNVD(object):
     def update_cve_settings_file(self):
         """ Save this cycle's collection metadata for next run. """
 
+        if self.testing:
+            print("[*] Testing mode is enabled, skipping settings file update")
+            return
+
         if isinstance(self.last_mitre_retrieval, datetime.datetime):
             self.last_mitre_retrieval = self.last_mitre_retrieval.strftime(self.time_format)
+            
         with open(self.cve_settings_file, 'w') as json_file:
             # Update our timestamp values with the updated timestamp created via self._build_query()
             json.dump({

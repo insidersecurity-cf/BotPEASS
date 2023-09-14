@@ -10,12 +10,18 @@ HIGH_SEVERITY_THRESHOLD: 9.5
 ENABLE_SCORE_FILTERING: True
 MIN_SCORE_THRESHOLD: 6.0
 
-# Update MITRE Exploit-DB dataset every 'n' days
+# -- MITRE Exploit-DB -- Update dataset every 'n' days
 MITRE_INTERVAL: 3
 
+# -- EPSS Score Lookups --
+ENABLE_EPSS_LOOKUPS: True
+
+# -- Exclusion Filtering --
 # If present, exclude CVE from results
+# NOTE: Case Sensitive!
 EXCLUDED_KEYWORDS:
 - SourceCodester
+- Sourcecodester
 
 # Case-insensitive keywords in CVE Description/Summary
 DESCRIPTION_KEYWORDS_I:
