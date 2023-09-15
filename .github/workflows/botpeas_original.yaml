@@ -1,4 +1,4 @@
-name: bopteas_action
+name: botpeas_action
 
 on:
   schedule:
@@ -19,7 +19,7 @@ jobs:
         run: python3 -m pip install -r requirements.txt
 
       - name: Run CVEs Monitor
-        run: python3 bopteas.py
+        run: python3 botpeas.py
         shell: bash
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
@@ -28,7 +28,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       - name: Create local changes
-        run: git add output/bopteas.json
+        run: git add output/botpeas.json
 
       - name: Commit results to Github
         run: |
