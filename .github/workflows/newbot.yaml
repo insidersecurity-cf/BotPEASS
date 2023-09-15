@@ -21,7 +21,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run CVEs Monitor
-        run: python newbot.py
+        run: python cvebot.py
         shell: bash
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
@@ -30,7 +30,7 @@ jobs:
 
       - name: Create local changes
         run: |
-            git add config/bopteas.json
+            git add config/botpeas.json
             git add output/mitre_exploit_map.csv
 
       - name: Commit results to Github
