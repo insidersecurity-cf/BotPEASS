@@ -26,8 +26,6 @@ DEBUG = False
 
 
 
-
-
 #     return dataset
 
 
@@ -38,7 +36,6 @@ def main():
     parser.add_argument('-t', '--testing', action='store_true',
                         help='Run bot in console for testing, skipping writes to file')
     args = parser.parse_args()
-
 
     retriever = CVERetrieverNVD(testing=args.testing)
     data = retriever.get_new_cves()

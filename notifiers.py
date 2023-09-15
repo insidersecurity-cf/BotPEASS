@@ -68,14 +68,15 @@ def generate_new_cve_message(cve_data: dict, github_addendum=None) -> str:
 
     # TODO: If config has this integration enabled do it, else skip
     gopher_epss = EPSSGopher()
-    epss = float(gopher_epss.get_score_for_cve(cve_data["CVE_ID"]))
-    # log.debug(f"{row_data['CVE']} has EPSS: {float(epss):.2f}")
-    # log.debug(f"{row_data['CVE']} has EPSS: {epss}")
-    epss_percentage = epss * 100
-    print(f"[*] {cve_data['CVE_ID']} has EPSS: {epss:.2f} ({epss_percentage} %)")
-    if round(epss_percentage) == 0:
-        print("[DBG] EPSS for this CVE is rounded to 0%")
-    cve_data["EPSS"] = f"{epss:.0f} %"
+    epss = gopher_epss.get_score_for_cve(cve_data["CVE_ID"])
+    if epss:
+        # log.debug(f"{row_data['CVE']} has EPSS: {float(epss):.2f}")
+        # log.debug(f"{row_data['CVE']} has EPSS: {epss}")
+        epss_percentage = epss * 100
+        print(f"[*] {cve_data['CVE_ID']} has EPSS: {epss:.2f} ({epss_percentage} %)")
+        if round(epss_percentage) == 0:
+            print("[DBG] EPSS for this CVE is rounded to 0%")
+        cve_data["EPSS"] = f"{epss:.0f} %"
 
     # Emoji's for copy and pasting here: https://www.freecodecamp.org/news/all-emojis-emoji-list-for-copy-and-paste/
     # 💥 📅
