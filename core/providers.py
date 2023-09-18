@@ -107,10 +107,12 @@ class CVERetrieverNVD(object):
             self.description_keywords = keywords_config["DESCRIPTION_KEYWORDS"]
             self.description_keywords_i = keywords_config["DESCRIPTION_KEYWORDS_I"]
             self.excluded_keywords = keywords_config["EXCLUDED_KEYWORDS"]
+
             # NOTE: %3A is the url-encoded form of a colon ":"
-            self.gitdork_excluded_repos_string = "+-repo:".join([x for x in keywords_config["GITDORK_REPO_EXCLUSIONS"]])
+            self.gitdork_excluded_repos_string = "NOT is:fork +-repo:"
+            self.gitdork_excluded_repos_string += "+-repo:".join([x for x in keywords_config["GITDORK_REPO_EXCLUSIONS"]])
             # Must also add it to the front because join() doesn't do the very front
-            self.gitdork_excluded_repos_string = f"+-repo:{self.gitdork_excluded_repos_string}"
+            # self.gitdork_excluded_repos_string = f"+-repo:{self.gitdork_excluded_repos_string}"
             
         print("[*] Loaded config settings, search & exclusion keywords")
         
@@ -176,7 +178,7 @@ class CVERetrieverNVD(object):
 
     def _build_query(self):
         # Query syntax for a typical grab of latest CVE's from NVD API 2.0
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(datetime.timezone.utc)
         self.updated_cve_timestamp = now.strftime(self.time_format)
         self.last_new_cve = self.last_new_cve.strftime(self.time_format)
         self.last_modified_cve = self.last_modified_cve.strftime(self.time_format)
@@ -188,11 +190,14 @@ class CVERetrieverNVD(object):
 
     def get_new_cves(self):
         """ Get latest CVE's from NVD's API service and store into dict. """
-        response = requests.get(self._build_query())
-        #time.sleep(6)   # NVD recommends sleeping 6 secs between requests, but 
+        full_url = self._build_query()
+        print(f"[!] Fetching CVE data from URL: {full_url}")
+        response = requests.get(full_url)
+        # NVD recommends sleeping 6 secs between requests, but 
         # we're only making 1 request, so no worries
+        #time.sleep(6)
         if response.status_code != 200:
-            print("[!] Error contacting NVD API for CVEs")
+            print(f"[!] Error contacting NVD API for CVEs - response code: {response.status_code}")
             return
         nvd_json = json.loads(response.text)
         if DEBUG: print("[DBG] API json response has been loaded into a json object")
@@ -295,31 +300,37 @@ class CVERetrieverNVD(object):
                     item['CVSSv3_Score'] = "TBD"
                 elif not self._cvss_score_at_above(item['CVE_ID'], item['CVSSv3_Score'], self.min_score_threshold):
                     # If score filtering is enabled, and CVE is below threshold, skip it altogether
+                    print(f"[INFO] Filtering out CVE (below min score threshold): {item['CVE_ID']} - {item['Description']}")
                     continue
 
             # Before anything, skip excluded patterns first
             if self._is_excluded_keyword_present(item['Description']):
-                print(f"[-] Skipping CVE entry that matches an excluded keyword ({item['CVE_ID']})")
+                print(f"[INFO] Filtering out CVE (matches an excluded keyword): {item['CVE_ID']} - {item['Description']}")
                 continue
 
             if self.search_scope == 'products':
                 if self._is_prod_keyword_present(item['Description']):
                     filtered_cves.append(item)
+                else:
+                    print(f"[INFO] Filtering out CVE (no matching product keywords): {item['CVE_ID']} - {item['Description']}")
             elif self.search_scope == 'all_keywords':
                 if self._is_prod_keyword_present(item['Description']) or \
                     self._is_summ_keyword_present(item['Description']):
                     filtered_cves.append(item)
+                else:
+                    print(f"[INFO] Filtering out CVE (no matching general keywords): {item['CVE_ID']} - {item['Description']}")
             elif self.search_scope == 'all_cves':
                 return self.cve_new_dataset
 
             if self.include_high_severity:
-                # TODO: Don't think the 2nd part of this conditional is valid, will always be True bc I'm not checking for CVE_ID in keys
                 if self._cvss_score_at_above(item['CVE_ID'], item['CVSSv3_Score'], self.high_severity_threshold):
                     if item['CVE_ID'] not in [x['CVE_ID'] for x in filtered_cves]:
-                        print(f"[*] High Severity CVE ({item['CVE_ID']}) identified and including in results")
+                        print(f"[INFO] Keeping High Severity CVE (include_high_severity enabled): {item['CVE_ID']}")
                         filtered_cves.append(item)
                     else:
                         if DEBUG: print(f"[DBG] Skipping {item['CVE_ID']} because it's already in the results list")
+                else:
+                    print(f"[INFO] Filtering out CVE (no match on preferences and not a high enough severity score): {item['CVE_ID']} - {item['Description']}")
             
         self.cve_new_dataset = filtered_cves
         return
