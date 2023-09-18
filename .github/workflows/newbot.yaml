@@ -31,7 +31,7 @@ jobs:
       - name: Create local changes
         run: |
             git add config/botpeas.json
-            git add output/mitre_exploit_map.csv
+            git add datasets/mitre_exploit_map.csv
 
       - name: Commit results to Github
         run: |

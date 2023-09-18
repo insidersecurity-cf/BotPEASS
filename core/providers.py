@@ -17,7 +17,9 @@ from bs4 import BeautifulSoup as BS
 
 DEBUG = False
 APP_DIR = Path(__file__).resolve(strict=True).parent.parent
-SAVE_DIR = APP_DIR / "output"
+# CONFIG_DIR = APP_DIR / "config"
+SAVE_DIR = APP_DIR / "datasets"
+# Set initial defaults
 LAST_NEW_CVE = datetime.datetime.now() - datetime.timedelta(days=1)
 LAST_MODIFIED_CVE = datetime.datetime.now() - datetime.timedelta(days=1)
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
@@ -48,21 +50,30 @@ class CVERetrieverNVD(object):
     def __init__(self, testing=False):
         global APP_DIR, SAVE_DIR, DEBUG
 
+        # During local dev testing, if True, this will skip writing timestamps to json file
+        # so that we can run the script repeatedly and not update any timestamps
+        # that will be used by the GitHub repo during scheduled executions.
         self.testing = testing
 
-        self.base_url_nvd = "https://services.nvd.nist.gov/rest/json/cves/2.0"
         # NOTE: NVD API rate limit w/o an API key: 5 requests in a rolling 30-second window (with key: 50 in 30s)
+        self.base_url_nvd = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+        
         self.keywords_config_path = APP_DIR / 'config' / 'botpeas.yaml'
-        #self.cve_settings_file = SAVE_DIR / 'botpeas.json'         # Old location
         self.cve_settings_file = APP_DIR / 'config' / 'botpeas.json'
+
+        # MITRE Exploit-DB Mapping - Set defaults, interval later read from config
         self.mitre_exploit_file = SAVE_DIR / 'mitre_exploit_map.csv'
-        #self.keywords_config_path = KEYWORDS_CONFIG_PATH
-        self.cve_new_dataset = []
+        self.mitre_interval = 10
+        self.last_mitre_retrieval = datetime.datetime.now() - datetime.timedelta(days=self.mitre_interval)
+        
+        # More defaults -- user preferences are later read from config
         self.search_scope = 'all_keywords'          # can be one of: "products", "all_keywords", "all_cves"
         self.include_high_severity = True           # Include High Severity CVE's regardless of keywords
         self.high_severity_threshold = 8.0          # Min CVSS score threshold for "high severity" scope
         self.enable_score_filtering = False         # Enable min. score for matching keywords also
         self.min_score_threshold = 6.0              # Min. score threshold for inclusion in results
+
+        self.cve_new_dataset = []
         self.product_keywords = set()
         self.product_keywords_i = set()
         self.description_keywords = set()
@@ -70,15 +81,13 @@ class CVERetrieverNVD(object):
         self.excluded_keywords = set()
         self.last_new_cve = datetime.datetime.now() - datetime.timedelta(days=1)
         self.last_modified_cve = datetime.datetime.now() - datetime.timedelta(days=1)
-        self.last_mitre_retrieval = datetime.datetime.now() - datetime.timedelta(days=10)
-        self.mitre_interval = 3
+        
         self.time_format = "%Y-%m-%dT%H:%M:%S"
 
         if not os.path.exists(SAVE_DIR):
             os.makedirs(SAVE_DIR)
 
         # NOTE: param "hasKev" is present in CVE's that appear in CISA's Known Exploited Vulns catalog
-
         self.api_data_params = ['cveId', 'cvssV3Severity', 'cvssV2Severity', 'cvssV3Metrics',
             'cweId', 'hasKev', 'lastModStartDate', 'lastModEndDate', 'pubStartDate', 'pubEndDate',
             'resultsPerPage', 'startIndex', 'sourceIdentifier', 
@@ -98,7 +107,7 @@ class CVERetrieverNVD(object):
                 self.min_score_threshold = keywords_config['MIN_SCORE_THRESHOLD']
                 self.mitre_interval = keywords_config['MITRE_INTERVAL']
             except KeyError:
-                print("[!] Your botpeas.yaml config file is missing new feature preference parameters. Using defaults for now which are defined in the class CVERetrieverNVD() __init__() function")
+                print("[!] Your botpeas.yaml config file is missing new feature preference parameters. Using defaults for now which are defined in this class' (CVERetrieverNVD()) __init__() method")
                 pass
 
             # NOTE: These all load as python list type objects
@@ -127,10 +136,6 @@ class CVERetrieverNVD(object):
                 self.exploit_map.append({'CVE_ID': row['CveId'], 'ExploitDB_ID': row['ExploitId']})
             print("[*] MITRE Exploit-DB ID Mapping has been loaded")
         return
-    
-    def get_github_exclusions_addendum(self):
-        """ From the config, send over the URL-formatted query addendum to tune all built URLs. """
-        return self.gitdork_excluded_repos_string
 
     def load_cve_settings_file(self):
         if not os.path.exists(self.cve_settings_file):
@@ -149,7 +154,7 @@ class CVERetrieverNVD(object):
                     if DEBUG: print("[DBG] Date timestamps all loaded from settings json file")
                 except Exception as e:
                     # In case this is run but key is not yet in the file
-                    if DEBUG: print("[DBG] Failed to load LAST_MITRE_RETRIEVAL from config file")
+                    if DEBUG: print("[DBG] Failed to load LAST_MITRE_RETRIEVAL from config file, defaulting to 5 days")
                     pass
                 
         except Exception as e:
@@ -158,7 +163,7 @@ class CVERetrieverNVD(object):
         return
 
     def update_cve_settings_file(self):
-        """ Save this cycle's collection metadata for next run. """
+        """ Save this cycle's collection metadata to json file for next run. """
 
         if self.testing:
             print("[*] Testing mode is enabled, skipping settings file update")
@@ -204,7 +209,7 @@ class CVERetrieverNVD(object):
         results_total = nvd_json["totalResults"]
         print(f"[*] {results_total} CVE's pulled from NVD for processing, please wait...")
         for v in nvd_json["vulnerabilities"]:
-            if DEBUG: print("\n\n[DBG] CVE Raw record (v): {}".format(v))
+            if DEBUG: print(f"\n[DBG] CVE Raw record: {v=}")
             # Start with all values empty on each iteration
             cve_description = ''
             cvssv3_score = ''
@@ -376,7 +381,7 @@ class CVERetrieverNVD(object):
         return
 
     def download_exploit_mapping(self):
-        """ Retrieve the current Exploit mapping from MITRE """
+        """ Retrieve the current MITRE Exploit-DB mapping dataset to use locally. """
         date_threshold = datetime.datetime.now() - datetime.timedelta(days=int(self.mitre_interval))
         if os.path.exists(self.mitre_exploit_file):
             if self.last_mitre_retrieval < date_threshold:
@@ -391,7 +396,7 @@ class CVERetrieverNVD(object):
         response = requests.get(url_mitre, allow_redirects=True)
 
         if response.status_code == 200:
-            print(f"[*] Response: {response.status_code} - Successfully requested MITRE exploit db mapping resource")
+            print(f"[*] Response: {response.status_code} - Successfully fetched MITRE Exploit-DB mapping resource")
         else:
             print(f"[!] Could not connect to retrieve MITRE Exploit mapping resource file, try again later")
             return
@@ -425,7 +430,10 @@ class CVERetrieverNVD(object):
         now = datetime.datetime.now()
         self.last_mitre_retrieval = now.strftime(self.time_format)
         return
-
+    
+    def get_github_exclusions_addendum(self):
+        """ From the config, send over the URL-formatted query addendum to tune all built URLs. """
+        return self.gitdork_excluded_repos_string
 
 # NVD API Notes:
     # E.g. requests.get("https://services.nvd.nist.gov/rest/json/cves/2.0?hasKev", headers=headers)
@@ -439,6 +447,10 @@ class CVERetrieverNVD(object):
     # [YYYY]["-"][MM]["-"][DD]["T"][HH][":"][SS][Z]     ?lastModStartDate=2022-08-04T13:00:00
 
     # page limit / resultsPerPage - default value and max page limit is 2,000 results
+
+# -=- End of Class -=-
+
+
 
 
 if __name__ == '__main__':
