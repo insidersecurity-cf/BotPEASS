@@ -67,6 +67,8 @@ PRODUCT_KEYWORDS_I:
 - Microsoft O365
 - VMware ESXi
 - VMware vCenter
+- Windows 10
+- Windows 11
 
 PRODUCT_KEYWORDS:
 - Sudo
@@ -84,8 +86,6 @@ PRODUCT_KEYWORDS:
 - Microsoft Exchange
 - Microsoft Teams
 - Microsoft SQL
-- Windows
-- Ruby
 
 # Repo's to exclude when crafting the Github CVE search URL
 GITDORK_REPO_EXCLUSIONS:
