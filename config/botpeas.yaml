@@ -82,6 +82,7 @@ PRODUCT_KEYWORDS_I:
 - Container
 
 PRODUCT_KEYWORDS:
+- InsiderSecurity
 
 # Repo's to exclude when crafting the Github CVE search URL
 GITDORK_REPO_EXCLUSIONS:
