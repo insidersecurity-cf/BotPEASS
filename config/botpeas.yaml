@@ -64,22 +64,23 @@ DESCRIPTION_KEYWORDS:
 
 PRODUCT_KEYWORDS_I:
 - Microsoft Office
-- VMware ESXi
-- VMware vCenter
+- ESXi
+- vCenter
 - Chrome
-- Mozilla Firefox
+- Firefox
 - Microsoft Exchange
 - Microsoft Teams
 - Microsoft SQL
 - Adobe
-- Google Android
+- Android
 - Apple iPhone OS
+- ios
+- iphone
 - Atlassian
 - Confluence
 - Bitbucket
 - Docker
 - Kubernetes
-- Container
 
 PRODUCT_KEYWORDS:
 - InsiderSecurity
