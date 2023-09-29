@@ -8,7 +8,7 @@ ALL_VALID: no
 #   - all_cves:       every CVE in the results will be sent as a message
 #   - all_keywords:   All CVE's matching your defined keywords will be sent (including products)
 #   - products:       Only CVE's matching your defined products, but you get all of them, regardless of keywords
-SEARCH_SCOPE: all_keywords
+SEARCH_SCOPE: products
 
 # -- Include High-Severity CVE's Always --
 # Expand your search scope to also include high-severity CVE's
@@ -37,7 +37,6 @@ EXCLUDED_KEYWORDS:
 - SourceCodester
 - Sourcecodester
 
-# Case-insensitive keywords in CVE Description/Summary
 DESCRIPTION_KEYWORDS_I:
 - auth bypass
 - authentication bypass
@@ -66,39 +65,27 @@ DESCRIPTION_KEYWORDS:
 PRODUCT_KEYWORDS_I:
 - kubernetes
 - Microsoft O365
+- VMware ESXi
+- VMware vCenter
 
 PRODUCT_KEYWORDS:
-- " AEM "
-- Adobe AEM
-- AdobeCQ
-- Adobe CQ
-- Adobe Experience Platform
-- Adobe Experience Manager
+- Sudo
 - Atlassian
-- Cisco
-- Citrix
 - Confluence
-- CrowdStrike
+- Bitbucket
 - Docker
-- Fortinet Fortigate
-- Groovy
-- IBM HTTP
-- Juniper
-- Magento
+- Kubernetes
+- Container
+- Chrome
+- Firefox
+- Adobe
+- Apple
+- Android
 - Microsoft Exchange
+- Microsoft Teams
 - Microsoft SQL
-- Netscaler
-- Pulse Secure
-- Python Django
-- Python Flask
-- Spring Boot
-- Spring Core
-- Spring Security
-- SwaggerUI
-- Symantec Endpoint
-- Tomcat
-- Trend Micro
-- VMware Horizon
+- Windows
+- Ruby
 
 # Repo's to exclude when crafting the Github CVE search URL
 GITDORK_REPO_EXCLUSIONS:
