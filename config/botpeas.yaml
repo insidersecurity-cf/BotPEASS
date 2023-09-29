@@ -38,40 +38,37 @@ EXCLUDED_KEYWORDS:
 - Sourcecodester
 
 DESCRIPTION_KEYWORDS_I:
-- auth bypass
-- authentication bypass
-- default credentials
-- default password
-- deserialization
-- sql injection
-- privesc
-- local file inclusion
-- remote file inclusion
-- remote code execution
-- " sudo "
-- " suid "
-- " UAC "
-- docker
-- kubernetes
-- " lxc "
+# - auth bypass
+# - authentication bypass
+# - default credentials
+# - default password
+# - deserialization
+# - sql injection
+# - privesc
+# - local file inclusion
+# - remote file inclusion
+# - remote code execution
+# - " sudo "
+# - " suid "
+# - " UAC "
+# - docker
+# - kubernetes
+# - " lxc "
 
 DESCRIPTION_KEYWORDS:
-- User Account Control
-- LFI
-- RCE
-- RFI
-- SQLi
+# - User Account Control
+# - LFI
+# - RCE
+# - RFI
+# - SQLi
 
 PRODUCT_KEYWORDS_I:
 - kubernetes
 - Microsoft O365
 - VMware ESXi
 - VMware vCenter
-- Windows 10
-- Windows 11
 
 PRODUCT_KEYWORDS:
-- Sudo
 - Atlassian
 - Confluence
 - Bitbucket
@@ -86,6 +83,7 @@ PRODUCT_KEYWORDS:
 - Microsoft Exchange
 - Microsoft Teams
 - Microsoft SQL
+- Ruby
 
 # Repo's to exclude when crafting the Github CVE search URL
 GITDORK_REPO_EXCLUSIONS:
