@@ -63,27 +63,25 @@ DESCRIPTION_KEYWORDS:
 # - SQLi
 
 PRODUCT_KEYWORDS_I:
-- kubernetes
-- Microsoft O365
+- Microsoft Office
 - VMware ESXi
 - VMware vCenter
-
-PRODUCT_KEYWORDS:
+- Chrome
+- Mozilla Firefox
+- Microsoft Exchange
+- Microsoft Teams
+- Microsoft SQL
+- Adobe
+- Google Android
+- Apple iPhone OS
 - Atlassian
 - Confluence
 - Bitbucket
 - Docker
 - Kubernetes
 - Container
-- Chrome
-- Firefox
-- Adobe
-- Apple
-- Android
-- Microsoft Exchange
-- Microsoft Teams
-- Microsoft SQL
-- Ruby
+
+PRODUCT_KEYWORDS:
 
 # Repo's to exclude when crafting the Github CVE search URL
 GITDORK_REPO_EXCLUSIONS:
