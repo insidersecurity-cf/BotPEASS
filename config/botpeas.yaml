@@ -15,7 +15,7 @@ SEARCH_SCOPE: products
 # NOTE: Out of caution, if enabled, bot will also include all CVE's for which no score exists yet, so we don't miss a hot new CVE that just doesn't yet have a score assigned.
 #     True:         enabled
 #     threshold:    all CVE's with CVSS score equal to or higher are included
-INCLUDE_HIGH_SEVERITY: True
+INCLUDE_HIGH_SEVERITY: False
 HIGH_SEVERITY_THRESHOLD: 9.5
 
 # -- Exclude Low-Severity CVE's Always --
